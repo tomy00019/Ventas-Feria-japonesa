@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ventas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      margin: 0 auto;
+      max-width: 600px;
+      background-color: #fefefe;
+    }
+
+    input[type="number"], input[type="text"] {
+      margin-left: 10px;
+    }
+
+    button {
+      margin: 10px 0;
+      padding: 12px;
+      width: 100%;
+      font-size: 16px;
+    }
+
+    .venta {
+      border-bottom: 1px solid #ccc;
+      margin-top: 10px;
+      padding-bottom: 5px;
+    }
+
+    .item-row {
+      margin-bottom: 5px;
+    }
+
+    .small-btn {
+      font-size: 12px;
+      margin-left: 10px;
+    }
+
+    #configPanel {
+      display: none;
+      background: #f4f4f4;
+      padding: 10px;
+      border: 1px solid #ccc;
+      margin-bottom: 20px;
+    }
+
+    .toggle-btn {
+      background-color: #ddd;
+      border: none;
+      padding: 8px 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    input.cantidad-input {
+      width: 100%;
+      font-size: 20px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+  </style>
+</head>
+<body>
+  <h2>Registrar Venta</h2>
+  <button class="toggle-btn" onclick="toggleConfig()">⚙️ Mostrar / Ocultar Gestión de Artículos</button>
+
+  <div id="configPanel">
+    <h3>Gestión de Artículos</h3>
+    <div id="itemsList"></div>
+    <button onclick="agregarItem()">➕ Agregar Artículo</button>
+  </div>
+
+  <form id="ventaForm"></form>
+
+  <h3>Venta Actual</h3>
+  <p id="ventaActual">$0</p>
+
+  <h3>Historial de Ventas</h3>
+  <div id="historial"></div>
+
+  <h4>Borrar venta específica</h4>
+  <input type="number" id="numeroVentaBorrar" placeholder="Número de venta a borrar" style="width: 100%; padding: 10px;">
+  <button onclick="borrarVentaEspecifica()">❌ Borrar venta</button>
+
+  <button onclick="borrarHistorial()">🗑️ Borrar todo el historial</button>
+
+  <h3>📊 Estadísticas</h3>
+  <div id="estadisticas"></div>
+
+  <script>
+    let items = JSON.parse(localStorage.getItem('items')) || [
+      { nombre: "Item A", precio: 10 },
+      { nombre: "Item B", precio: 15 },
+      { nombre: "Item C", precio: 20 },
+      { nombre: "Item D", precio: 25 }
+    ];
+
+    let historial = JSON.parse(localStorage.getItem('historialVentas') || '[]');
+
+    const ventaForm = document.getElementById('ventaForm');
+    const ventaActualEl = document.getElementById('ventaActual');
+    const historialEl = document.getElementById('historial');
+    const itemsList = document.getElementById('itemsList');
+    const configPanel = document.getElementById('configPanel');
+    const estadisticasEl = document.getElementById('estadisticas');
+
+    function toggleConfig() {
+      configPanel.style.display = configPanel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function guardarItems() {
+      localStorage.setItem('items', JSON.stringify(items));
+    }
+
+    function renderItemsConfig() {
+      itemsList.innerHTML = '';
+      items.forEach((item, index) => {
+        const div = document.createElement('div');
+        div.className = 'item-row';
+        div.innerHTML = `
+          <input type="text" value="${item.nombre}" onchange="actualizarNombre(${index}, this.value)">
+          $<input type="number" value="${item.precio}" onchange="actualizarPrecio(${index}, this.value)">
+          <button class="small-btn" onclick="eliminarItem(${index})">❌</button>
+        `;
+        itemsList.appendChild(div);
+      });
+      renderFormulario();
+    }
+
+    function renderFormulario() {
+      ventaForm.innerHTML = '';
+      items.forEach((item, index) => {
+        const label = document.createElement('label');
+        label.innerHTML = `
+          <strong>${item.nombre} ($${item.precio})</strong><br>
+          <input type="number" min="0" value="0" id="item${index}" class="cantidad-input"><br>
+        `;
+        ventaForm.appendChild(label);
+      });
+
+      const btn = document.createElement('button');
+      btn.type = 'submit';
+      btn.textContent = 'Registrar Venta';
+      ventaForm.appendChild(btn);
+    }
+
+    function actualizarNombre(index, nuevoNombre) {
+      items[index].nombre = nuevoNombre;
+      guardarItems();
+      renderItemsConfig();
+    }
+
+    function actualizarPrecio(index, nuevoPrecio) {
+      items[index].precio = parseFloat(nuevoPrecio);
+      guardarItems();
+      renderItemsConfig();
+    }
+
+    function eliminarItem(index) {
+      items.splice(index, 1);
+      guardarItems();
+      renderItemsConfig();
+    }
+
+    function agregarItem() {
+      items.push({ nombre: `Item ${String.fromCharCode(65 + items.length)}`, precio: 0 });
+      guardarItems();
+      renderItemsConfig();
+    }
+
+    ventaForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      let total = 0;
+      let detalles = [];
+      let cantidades = [];
+
+      items.forEach((item, index) => {
+        const cantidad = +document.getElementById(`item${index}`).value;
+        cantidades[index] = cantidad;
+        if (cantidad > 0) {
+          const subtotal = cantidad * item.precio;
+          total += subtotal;
+          detalles.push(`${cantidad} x ${item.nombre} ($${subtotal})`);
+        }
+      });
+
+      ventaActualEl.textContent = `$${total}`;
+      historial.unshift({ total, detalles: detalles.join(', '), cantidades });
+      localStorage.setItem('historialVentas', JSON.stringify(historial));
+      cargarHistorial();
+      renderFormulario();
+    });
+
+    function cargarHistorial() {
+      historialEl.innerHTML = '';
+      historial.forEach((venta, i) => {
+        const div = document.createElement('div');
+        div.className = 'venta';
+        div.textContent = `Venta ${i + 1} - Total: $${venta.total} (${venta.detalles})`;
+        historialEl.appendChild(div);
+      });
+      calcularEstadisticas();
+    }
+
+    function borrarHistorial() {
+      if (confirm('¿Estás seguro de que querés borrar todo el historial?')) {
+        historial = [];
+        localStorage.setItem('historialVentas', JSON.stringify(historial));
+        cargarHistorial();
+        ventaActualEl.textContent = '$0';
+      }
+    }
+
+    function borrarVentaEspecifica() {
+      const numero = parseInt(document.getElementById('numeroVentaBorrar').value);
+      if (!isNaN(numero) && numero >= 1 && numero <= historial.length) {
+        if (confirm(`¿Seguro que querés borrar la venta número ${numero}?`)) {
+          historial.splice(numero - 1, 1);
+          localStorage.setItem('historialVentas', JSON.stringify(historial));
+          cargarHistorial();
+        }
+      } else {
+        alert('Número de venta inválido.');
+      }
+    }
+
+    function calcularEstadisticas() {
+      let totalesPorItem = new Array(items.length).fill(0);
+      let totalGeneral = 0;
+
+      historial.forEach(venta => {
+        totalGeneral += venta.total;
+        if (venta.cantidades) {
+          venta.cantidades.forEach((cant, i) => {
+            totalesPorItem[i] += cant;
+          });
+        }
+      });
+
+      let estadisticasHtml = `<p><strong>Total de ventas:</strong> ${historial.length}</p>`;
+      estadisticasHtml += `<p><strong>Ingresos totales:</strong> $${totalGeneral}</p>`;
+      estadisticasHtml += `<p><strong>Ingreso promedio:</strong> $${(totalGeneral / (historial.length || 1)).toFixed(2)}</p>`;
+      estadisticasHtml += `<h4>Ventas por artículo:</h4><ul>`;
+      items.forEach((item, i) => {
+        estadisticasHtml += `<li>${item.nombre}: ${totalesPorItem[i]} unidades</li>`;
+      });
+      estadisticasHtml += `</ul>`;
+
+      estadisticasEl.innerHTML = estadisticasHtml;
+    }
+
+    // Inicialización
+    renderItemsConfig();
+    cargarHistorial();
+    configPanel.style.display = 'none';
+  </script>
+</body>
+</html>
