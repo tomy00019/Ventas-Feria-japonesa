@@ -188,6 +188,12 @@
         }
       });
 
+
+
+      
+      ventaActualEl.textContent = `$${total}`;
+      historial.unshift({ total, detalles: detalles.join(', '), cantidades });
+
       // Enviar a Google Sheets
       fetch("https://script.google.com/macros/s/AKfycby_a5YCHLWCHNiEaAAf6vKOG-zsPfjXX8snxMhGcy-p2H0jcDE0LqXbOVuLSKa_iKsnGg/exec", {
         method: "POST",
@@ -202,10 +208,7 @@
       .then(res => res.text())
       .then(txt => console.log("Respuesta Google:", txt))
       .catch(err => console.error("Error Sheets:", err));
-
       
-      ventaActualEl.textContent = `$${total}`;
-      historial.unshift({ total, detalles: detalles.join(', '), cantidades });
       localStorage.setItem('historialVentas', JSON.stringify(historial));
       cargarHistorial();
       renderFormulario();
@@ -276,5 +279,6 @@
   </script>
 </body>
 </html>
+
 
 
