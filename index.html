@@ -177,7 +177,7 @@
       let total = 0;
       let detalles = [];
       let cantidades = [];
-
+      
       items.forEach((item, index) => {
         const cantidad = +document.getElementById(`item${index}`).value;
         cantidades[index] = cantidad;
@@ -188,6 +188,22 @@
         }
       });
 
+      // Enviar a Google Sheets
+      fetch("https://script.google.com/macros/s/AKfycbytxS39gRBSTZJm8sWqmv8q4isC4uSUwqXHdQUp5qjN-b6nmXNW_y3XP2jIHyLLyZInuA/exec", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          total: total,
+          detalles: detalles.join(", ")
+        })
+      })
+      .then(res => res.text())
+      .then(txt => console.log("Respuesta Google:", txt))
+      .catch(err => console.error("Error Sheets:", err));
+
+      
       ventaActualEl.textContent = `$${total}`;
       historial.unshift({ total, detalles: detalles.join(', '), cantidades });
       localStorage.setItem('historialVentas', JSON.stringify(historial));
@@ -260,3 +276,4 @@
   </script>
 </body>
 </html>
+
